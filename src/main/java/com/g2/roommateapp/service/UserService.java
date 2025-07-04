@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,7 +28,10 @@ public class UserService {
         User user = new User();
         user.setEmail(registerRequest.email);
         user.setPassword(passwordEncoder.encode(registerRequest.password));
-        user.setRole(registerRequest.role);
+        user.setFirstName(registerRequest.firstName);
+        user.setLastName(registerRequest.lastName);
+        user.setRole(registerRequest.role != null ? registerRequest.role : "USER");
+        user.setStatut("INACTIVE");
         userRepository.save(user);
     }
 
@@ -37,64 +41,54 @@ public class UserService {
         if(!passwordEncoder.matches(request.password,user.getPassword())){
             throw new RuntimeException("Wrong password");
         }
+        user.setStatut("ACTIVE");
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
         return jwtService.generateToken(user);
     }
 
 
-    //creation of the user
-    @PostMapping
-    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
-        }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        User createdUser = userRepository.save(user);
-
-        //JsonIgnore won't add the password in the JSON response
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+    public boolean emailExists(String email) {
+        return userRepository.existsByEmail(email);
     }
 
-    //get a single user
-    @GetMapping("/{id}")
-    public User getUser(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public User createUser(User user) {
+        User newUser = new User();
+        newUser.setEmail(user.getEmail());
+        newUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        newUser.setFirstName(user.getFirstName());
+        newUser.setLastName(user.getLastName());
+        newUser.setStatut("INACTIVE"); // Set status as INACTIVE by default
+        newUser.setRole("USER");
+        return userRepository.save(newUser);
     }
 
-    //List of all users
-    @GetMapping
+    public Optional<User> getUserById(Long id) {
+        return userRepository.findById(id);
+    }
+
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    //update
-    @PutMapping("/{id}")
-    public ResponseEntity<String> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
-
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (updatedUser.getEmail() != null) user.setEmail(updatedUser.getEmail());
-        if (updatedUser.getFirstName() != null) user.setFirstName(updatedUser.getFirstName());
-        if (updatedUser.getLastName() != null) user.setLastName(updatedUser.getLastName());
-        if (updatedUser.getPassword() != null) {
-            user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
-        }
-
-        userRepository.save(user);
-        return ResponseEntity.ok("User updated successfully");
+    public Optional<User> updateUser(Long id, User updatedUser) {
+        return userRepository.findById(id).map(user -> {
+            user.setEmail(updatedUser.getEmail());
+            user.setFirstName(updatedUser.getFirstName());
+            user.setLastName(updatedUser.getLastName());
+            if (updatedUser.getPassword() != null) {
+                user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+            }
+            return userRepository.save(user);
+        });
     }
 
-
-    //delete
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
+    public boolean deleteUser(Long id) {
         if (userRepository.existsById(id)) {
             userRepository.deleteById(id);
-            return ResponseEntity.ok("User deleted successfully");
+            return true;
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        return false;
     }
-
 
 }
