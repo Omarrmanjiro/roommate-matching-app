@@ -47,6 +47,13 @@ public class UserService {
         return jwtService.generateToken(user);
     }
 
+    public void logout(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setStatut("INACTIVE");
+        userRepository.save(user);
+    }
+
 
     public boolean emailExists(String email) {
         return userRepository.existsByEmail(email);
