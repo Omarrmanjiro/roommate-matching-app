@@ -1,6 +1,5 @@
 package com.g2.roommateapp.service;
 
-
 import com.g2.roommateapp.entity.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -12,24 +11,70 @@ import java.util.Date;
 
 @Service
 public class JwtService {
-    private final SecretKey SECRET_KEY= Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
-    public String generateToken(User user){
+    // Secure key used to sign and verify the token
+    private final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+
+    // Token expiration = 24 hours
+    private final long EXPIRATION_TIME = 1000 * 60 * 60 * 24;
+
+    /**
+     * Generates a JWT token with user's email, id, and role.
+     */
+    public String generateToken(User user) {
         return Jwts.builder()
                 .setSubject(user.getEmail())
-                .claim("role",user.getRole())
+                .claim("id", user.getId())               // ✅ Include user ID
+                .claim("role", user.getRole())           // Optional: include role
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis()+86400000))
-                .signWith(SignatureAlgorithm.HS256,SECRET_KEY)
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
                 .compact();
     }
 
-
-    public String extractEmail(String token){
+    /**
+     * Extract email (subject) from token
+     */
+    public String extractEmail(String token) {
         return Jwts.parser()
-                .setSigningKey(SECRET_KEY).build()
-                .parseClaimsJws(token)
+                .setSigningKey(SECRET_KEY)
+                .build()
+                .parseClaimsJws(cleanToken(token))
                 .getBody()
                 .getSubject();
+    }
+
+    /**
+     * Extract user ID from token
+     */
+    public Long extractId(String token) {
+        return Jwts.parser()
+                .setSigningKey(SECRET_KEY)
+                .build()
+                .parseClaimsJws(cleanToken(token))
+                .getBody()
+                .get("id", Long.class);
+    }
+
+    /**
+     * Helper to remove Bearer prefix from Authorization header
+     */
+    public String cleanToken(String token) {
+        return token.replace("Bearer", "").trim();
+    }
+
+    /**
+     * Optional: Validate token expiration or signature, etc.
+     */
+    public boolean isTokenValid(String token) {
+        try {
+            Jwts.parser()
+                    .setSigningKey(SECRET_KEY)
+                    .build()
+                    .parseClaimsJws(cleanToken(token));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
