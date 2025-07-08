@@ -24,19 +24,39 @@ public class UserPreferences {
     private Cleanliness cleanliness;
 
     @Enumerated(EnumType.STRING)
+    private ImportanceLevel cleanlinessImportance;
+
+    @Enumerated(EnumType.STRING)
     private SleepSchedule sleepSchedule;
+
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel SleepScheduleImportance;
 
     @Enumerated(EnumType.STRING)
     private NoiseTolerance noiseTolerance;
 
     @Enumerated(EnumType.STRING)
+    private ImportanceLevel noiseToleranceImportance;
+
+    @Enumerated(EnumType.STRING)
     private StudyPreference studyPreference;
+
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel studyPreferenceImportance;
 
     @Enumerated(EnumType.STRING)
     private VisitorPolicy visitorPolicy;
 
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel VisitorPolicyImportance;
+
     private boolean hasPets ;
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel hasPetsImportance;
+
     private boolean acceptsPets;
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel acceptsPetsImportance;
 
 
 }

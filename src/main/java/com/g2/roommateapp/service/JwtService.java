@@ -7,13 +7,17 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
 public class JwtService {
 
     // Secure key used to sign and verify the token
-    private final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private static final String SECRET = "my-super-secret-key-123456789012345678901234"; // must be at least 32 characters
+
+    private final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+
 
     // Token expiration = 24 hours
     private final long EXPIRATION_TIME = 1000 * 60 * 60 * 24;
