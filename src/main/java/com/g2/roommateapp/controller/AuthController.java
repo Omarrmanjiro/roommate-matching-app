@@ -29,12 +29,9 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout(@RequestBody Map<String, String> request) {
-
         String email = request.get("email");
-
         if (email == null || email.isEmpty())
             return ResponseEntity.badRequest().body("Email is required");
-
         userService.logout(email);
         return ResponseEntity.ok("User logged out successfully");
     }
