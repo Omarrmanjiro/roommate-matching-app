@@ -4,15 +4,20 @@ package com.g2.roommateapp.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 
 @Entity
-@Data // Lombok - generates getters/setters, toString(), equals(), hashCode()
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"preferences"})
 @Table(name = "users")
 public class User {
     @Id
@@ -36,15 +41,27 @@ public class User {
     private LocalDateTime createAt;
 
     private LocalDateTime lastLogin;
-    private String statut;
+    private String status;
     private String role;
 
     @PrePersist
     protected void onCreate() {
         createAt = LocalDateTime.now(); // Auto-set on creation
-
     }
-        @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-        private UserPreferences preferences;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private UserPreferences preferences;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(id, user.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

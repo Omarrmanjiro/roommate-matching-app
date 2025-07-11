@@ -13,5 +13,6 @@ public interface MatchSuggestionRepository extends JpaRepository<MatchSuggestion
     Optional<MatchSuggestion> findByUserAndSuggestedUser(User user, User suggestedUser);
     List<MatchSuggestion> findAllByUser(User user);
     List<MatchSuggestion> findByUserOrderByScoreDesc(User user);
+    Optional<MatchSuggestion> findByUserIdAndSuggestedUserId(Long userId, Long suggestedUserId);
 }
 

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket & Matching Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, button {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .notification-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #ffe082;
+            color: #333;
+            padding: 10px 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .notification-badge {
+            background: #ff5252;
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            margin-left: 10px;
+            font-size: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Notification Bar -->
+    <div id="notification-bar" class="notification-bar">
+        <span id="notification-message"></span>
+        <span id="notification-badge" class="notification-badge"></span>
+    </div>
+
+    <div class="container">
+        <h1>WebSocket & Matching Test</h1>
+        
+        <!-- Authentication Section -->
+        <div class="section">
+            <h2>Authentication</h2>
+            <input type="email" id="email" placeholder="Email" value="test1@example.com">
+            <input type="password" id="password" placeholder="Password" value="password">
+            <button onclick="login()">Login</button>
+            <button onclick="register()">Register</button>
+            <div id="auth-status"></div>
+        </div>
+
+        <!-- WebSocket Section -->
+        <div class="section">
+            <h2>WebSocket Chat</h2>
+            <input type="text" id="roomId" placeholder="Room ID" value="1">
+            <input type="text" id="message" placeholder="Message">
+    <button onclick="connect()">Connect</button>
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="disconnect()">Disconnect</button>
+            <div id="ws-log" class="log"></div>
+        </div>
+
+        <!-- Matching Section -->
+        <div class="section">
+            <h2>Matching Tests</h2>
+            <button onclick="getMatchSuggestions()">Get Match Suggestions</button>
+            <button onclick="getTopMatch()">Get Top Match</button>
+            <button onclick="acceptMatch()">Accept Match (ID: 2)</button>
+            <div id="matching-log" class="log"></div>
+        </div>
+</div>
+
+<script>
+    let stompClient = null;
+    let currentToken = null;
+    let notificationCount = 0;
+    const API_BASE = "http://localhost:8080";
+
+    // Authentication functions
+    async function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            const response = await fetch(`${API_BASE}/Auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                currentToken = data.token;
+                document.getElementById('auth-status').innerHTML = '<div style="color: green;">✓ Login successful! Token: ' + currentToken.substring(0, 50) + '...</div>';
+                log('ws-log', 'Login successful, token received');
+                connect(); // Auto-connect after login
+            } else {
+                document.getElementById('auth-status').innerHTML = '<div style="color: red;">✗ Login failed</div>';
+                log('ws-log', 'Login failed');
+            }
+        } catch (error) {
+            document.getElementById('auth-status').innerHTML = '<div style="color: red;">✗ Login error: ' + error.message + '</div>';
+            log('ws-log', 'Login error: ' + error.message);
+        }
+    }
+
+    async function register() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            const response = await fetch(`${API_BASE}/Auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (response.ok) {
+                document.getElementById('auth-status').innerHTML = '<div style="color: green;">✓ Registration successful!</div>';
+                log('ws-log', 'Registration successful');
+            } else {
+                document.getElementById('auth-status').innerHTML = '<div style="color: red;">✗ Registration failed</div>';
+                log('ws-log', 'Registration failed');
+            }
+        } catch (error) {
+            document.getElementById('auth-status').innerHTML = '<div style="color: red;">✗ Registration error: ' + error.message + '</div>';
+            log('ws-log', 'Registration error: ' + error.message);
+        }
+    }
+
+    // WebSocket functions
+    function connect() {
+        if (!currentToken) {
+            log('ws-log', 'Please login first to get a token');
+            return;
+        }
+
+        const socket = new SockJS(`${API_BASE}/ws`);
+        stompClient = Stomp.over(socket);
+
+        const headers = {
+            'Authorization': 'Bearer ' + currentToken
+        };
+
+        stompClient.connect(headers, () => {
+            log('ws-log', 'Connected to WebSocket!');
+            const roomId = document.getElementById('roomId').value;
+            // Load chat history after connecting
+            loadChatHistory(roomId);
+            stompClient.subscribe('/topic/chat/' + roomId, (message) => {
+                log('ws-log', 'Received: ' + message.body);
+                showNotification('New message received!'); // Show for all messages
+            });
+        }, (error) => {
+            log('ws-log', 'WebSocket Error: ' + error);
+        });
+    }
+
+    // Load chat history from backend
+    async function loadChatHistory(roomId) {
+        if (!currentToken) return;
+        try {
+            const response = await fetch(`${API_BASE}/chat/${roomId}/history`, {
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+            if (response.ok) {
+                const history = await response.json();
+                log('ws-log', '--- Chat History ---');
+                history.forEach(msg => {
+                    const label = msg.senderEmail ? msg.senderEmail + ': ' : '';
+                    log('ws-log', label + msg.content + ' [' + (msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '') + ']');
+                });
+                log('ws-log', '--- End of History ---');
+            } else {
+                log('ws-log', 'Failed to load chat history: ' + response.status);
+            }
+        } catch (e) {
+            log('ws-log', 'Error loading chat history: ' + e.message);
+        }
+    }
+
+    function sendMessage() {
+        if (stompClient && stompClient.connected) {
+            const roomId = document.getElementById('roomId').value;
+            const message = document.getElementById('message').value;
+            const chatMessage = {
+                content: message,
+                roomId: roomId
+            };
+            stompClient.send('/app/chat', {}, JSON.stringify(chatMessage));
+            log('ws-log', 'Sent: ' + message);
+            document.getElementById('message').value = '';
+        } else {
+            log('ws-log', 'Not connected! Please connect first.');
+        }
+    }
+
+    function disconnect() {
+        if (stompClient) {
+            stompClient.disconnect(() => {
+                log('ws-log', 'Disconnected!');
+            });
+        }
+    }
+
+    // Matching functions
+    async function getMatchSuggestions() {
+        if (!currentToken) {
+            log('matching-log', 'Please login first to get a token');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/users/match/suggestions`, {
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                log('matching-log', 'Match suggestions: ' + JSON.stringify(data, null, 2));
+            } else {
+                log('matching-log', 'Failed to get match suggestions: ' + response.status);
+            }
+        } catch (error) {
+            log('matching-log', 'Error getting match suggestions: ' + error.message);
+        }
+    }
+
+    async function getTopMatch() {
+        if (!currentToken) {
+            log('matching-log', 'Please login first to get a token');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/users/match/top`, {
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                log('matching-log', 'Top match: ' + JSON.stringify(data, null, 2));
+            } else {
+                log('matching-log', 'Failed to get top match: ' + response.status);
+            }
+        } catch (error) {
+            log('matching-log', 'Error getting top match: ' + error.message);
+        }
+    }
+
+    async function acceptMatch() {
+        if (!currentToken) {
+            log('matching-log', 'Please login first to get a token');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/users/match/accept`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + currentToken 
+                },
+                body: JSON.stringify({ matchId: 2 })
+            });
+            
+            const text = await response.text();
+            try {
+                const data = JSON.parse(text);
+                log('matching-log', 'Match accepted: ' + JSON.stringify(data, null, 2));
+                showNotification('Match accepted!');
+            } catch {
+                log('matching-log', 'Match accepted: ' + text);
+                showNotification('Match accepted!');
+            }
+        } catch (error) {
+            log('matching-log', 'Error accepting match: ' + error.message);
+        }
+    }
+
+    // Utility functions
+    function log(elementId, message) {
+        const logElement = document.getElementById(elementId);
+        const timestamp = new Date().toLocaleTimeString();
+        logElement.innerHTML += `[${timestamp}] ${message}\n`;
+        logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    function showNotification(message) {
+        notificationCount++;
+        const bar = document.getElementById('notification-bar');
+        const msg = document.getElementById('notification-message');
+        const badge = document.getElementById('notification-badge');
+        
+        msg.textContent = message;
+        badge.textContent = notificationCount;
+        badge.style.display = notificationCount > 0 ? 'inline' : 'none';
+        bar.style.display = 'block';
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            notificationCount = 0;
+            bar.style.display = 'none';
+        }, 5000);
+    }
+
+    // Auto-login with test credentials
+    window.addEventListener('DOMContentLoaded', () => {
+        log('ws-log', 'Page loaded. Use the buttons above to test functionality.');
+    });
+</script>
+</body>
+</html>

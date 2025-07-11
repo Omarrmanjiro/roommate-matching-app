@@ -2,21 +2,24 @@ package com.g2.roommateapp.entity;
 
 import com.g2.roommateapp.enums.*;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import java.util.Objects;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"user"})
 @Table(name = "user_preferences")
 public class UserPreferences {
     @Id
     private Long id;
 
     @OneToOne
-    @MapsId/****
-        * this the foreing key it is the same of the user entity
-        */
+    @MapsId
     @JoinColumn(name="id")
     private User user;
 
@@ -24,39 +27,50 @@ public class UserPreferences {
     private Cleanliness cleanliness;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel cleanlinessImportance;
+    private ImportanceLevel cleanlinessImportance = ImportanceLevel.NEUTRAL;
 
     @Enumerated(EnumType.STRING)
     private SleepSchedule sleepSchedule;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel SleepScheduleImportance;
+    private ImportanceLevel sleepScheduleImportance = ImportanceLevel.NEUTRAL;
 
     @Enumerated(EnumType.STRING)
     private NoiseTolerance noiseTolerance;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel noiseToleranceImportance;
+    private ImportanceLevel noiseToleranceImportance = ImportanceLevel.NEUTRAL;
 
     @Enumerated(EnumType.STRING)
     private StudyPreference studyPreference;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel studyPreferenceImportance;
+    private ImportanceLevel studyPreferenceImportance = ImportanceLevel.NEUTRAL;
 
     @Enumerated(EnumType.STRING)
     private VisitorPolicy visitorPolicy;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel VisitorPolicyImportance;
+    private ImportanceLevel visitorPolicyImportance = ImportanceLevel.NEUTRAL;
 
-    private boolean hasPets ;
+    private boolean hasPets = false;
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel hasPetsImportance;
+    private ImportanceLevel hasPetsImportance = ImportanceLevel.NEUTRAL;
 
-    private boolean acceptsPets;
+    private boolean acceptsPets = false;
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel acceptsPetsImportance;
+    private ImportanceLevel acceptsPetsImportance = ImportanceLevel.NEUTRAL;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserPreferences that = (UserPreferences) o;
+        return Objects.equals(id, that.id);
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

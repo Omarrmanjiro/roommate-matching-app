@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User,Long> {
-    @Query ("SELECT u FROM User u WHERE u.id<> :id")
+    @Query ("SELECT u FROM User u WHERE u.id <> :id")
     List<User> findAllExcept(@Param("id") Long id) ;
 
 

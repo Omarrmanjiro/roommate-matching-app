@@ -4,15 +4,9 @@ import com.g2.roommateapp.dto.LoginRequest;
 import com.g2.roommateapp.dto.RegisterRequest;
 import com.g2.roommateapp.entity.User;
 import com.g2.roommateapp.repository.UserRepository;
-import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,7 +25,7 @@ public class UserService {
         user.setFirstName(registerRequest.firstName);
         user.setLastName(registerRequest.lastName);
         user.setRole(registerRequest.role != null ? registerRequest.role : "USER");
-        user.setStatut("INACTIVE");
+        user.setStatus("INACTIVE");
         userRepository.save(user);
     }
 
@@ -41,16 +35,17 @@ public class UserService {
         if(!passwordEncoder.matches(request.password,user.getPassword())){
             throw new RuntimeException("Wrong password");
         }
-        user.setStatut("ACTIVE");
+        user.setStatus("ACTIVE");
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
         return jwtService.generateToken(user);
     }
 
+
     public void logout(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setStatut("INACTIVE");
+        user.setStatus("INACTIVE");
         userRepository.save(user);
     }
 
@@ -65,7 +60,7 @@ public class UserService {
         newUser.setPassword(passwordEncoder.encode(user.getPassword()));
         newUser.setFirstName(user.getFirstName());
         newUser.setLastName(user.getLastName());
-        newUser.setStatut("INACTIVE"); // Set status as INACTIVE by default
+        newUser.setStatus("INACTIVE"); // Set status as INACTIVE by default
         newUser.setRole("USER");
         return userRepository.save(newUser);
     }
@@ -73,6 +68,7 @@ public class UserService {
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
+
 
     public List<User> getAllUsers() {
         return userRepository.findAll();

@@ -22,10 +22,11 @@ public class UserPreferencesController {
     }
 
     @PutMapping
-    public void update(@RequestHeader("Authorization") String token,
+    public PreferencesResponse update(@RequestHeader("Authorization") String token,
                        @RequestBody PreferencesRequest request) {
         Long userId = jwtService.extractId(token);
         preferencesService.updatePreferences(userId, request);
+        return preferencesService.getPreferences(userId);
     }
 }
 

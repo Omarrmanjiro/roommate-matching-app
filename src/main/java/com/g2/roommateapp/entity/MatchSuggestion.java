@@ -9,9 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "match_suggestions", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "suggested_user_id"})
-})
+@Table(name = "match_suggestions")
 public class MatchSuggestion {
 
     @Id

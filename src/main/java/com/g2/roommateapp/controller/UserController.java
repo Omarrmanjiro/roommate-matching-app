@@ -1,5 +1,6 @@
 package com.g2.roommateapp.controller;
 
+import com.g2.roommateapp.dto.UserDTO;
 import com.g2.roommateapp.entity.User;
 import com.g2.roommateapp.service.UserService;
 import jakarta.validation.Valid;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/users")
@@ -31,16 +33,19 @@ public class UserController {
 
     //Getting a single user
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUser(@PathVariable Long id) {
+    public ResponseEntity<UserDTO> getUser(@PathVariable Long id) {
         return userService.getUserById(id)
+                .map(UserDTO::new)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     //List of all users
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        List<UserDTO> users = userService.getAllUsers().stream()
+                .map(UserDTO::new)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }
 

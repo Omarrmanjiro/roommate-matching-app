@@ -4,6 +4,7 @@ import com.g2.roommateapp.entity.MatchSuggestion;
 import com.g2.roommateapp.entity.User;
 import com.g2.roommateapp.entity.UserPreferences;
 import com.g2.roommateapp.enums.ImportanceLevel;
+import com.g2.roommateapp.enums.NotificationType;
 import com.g2.roommateapp.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,15 +16,23 @@ import java.util.List;
 @Service
 public class MatchingService {
     @Autowired
+    private final NotificationService notificationService;
+    @Autowired
     private MatchSuggestionRepository matchSuggestionRepository;
     @Autowired
     private final UserRepository userRepository;
     @Autowired
-    public MatchingService(UserRepository userRepository) {
+    public MatchingService(
+            UserRepository userRepository,
+            MatchSuggestionRepository matchSuggestionRepository,
+            NotificationService notificationService) {
         this.userRepository = userRepository;
+        this.matchSuggestionRepository = matchSuggestionRepository;
+        this.notificationService = notificationService;
     }
 
-/***********The Matching Algorithm************
+
+    /***********The Matching Algorithm************
  * 1-Fetch for the users except the active one.
  * 2-Stock them in an array.
  * 3-Handling if the user didn't fill the
@@ -47,33 +56,44 @@ public class MatchingService {
 
 
             if (score > 0) {
-                candidates.add(new MatchCandidate(other.getId(), other.getFirstName(), score));
-
                 matchSuggestionRepository.findByUserAndSuggestedUser(currentUser, other)
                         .ifPresentOrElse(existing -> {
                             existing.setScore(score);
                             matchSuggestionRepository.save(existing);
+                            candidates.add(new MatchCandidate(existing.getId(), other.getId(), other.getFirstName(), score));
                         }, () -> {
                             MatchSuggestion suggestion = new MatchSuggestion();
                             suggestion.setUser(currentUser);
                             suggestion.setSuggestedUser(other);
                             suggestion.setScore(score);
-                            matchSuggestionRepository.save(suggestion);
+                            MatchSuggestion savedSuggestion = matchSuggestionRepository.save(suggestion);
+                            candidates.add(new MatchCandidate(savedSuggestion.getId(), other.getId(), other.getFirstName(), score));
+
+                            // Add notification for new match here
+                            notificationService.sendRealTimeNotification(
+                                    currentUser.getId(),
+                                    "You've been matched with " + other.getFirstName() + "!"
+                            );
+
+                            notificationService.sendRealTimeNotification(
+                                    other.getId(),
+                                    "You've been matched with " + currentUser.getFirstName() + "!"
+                            );
                         });
             }
-
         }
+
         return candidates.stream()
                 .sorted(Comparator.comparingDouble(MatchCandidate::score).reversed())
                 .limit(topN)
                 .toList();
-        }
-        /**
-         * 1-we calculate the compatibility score
-         * 2-we calculate the max score if the match was perfect
-         * 3-return the actual compatibility percentage (ex:0.80->80%)
-         * */
-    private double calculateCompatibility(UserPreferences a,UserPreferences b){
+    }
+    /**
+     * 1-we calculate the compatibility score
+     * 2-we calculate the max score if the match was perfect
+     * 3-return the actual compatibility percentage (ex:0.80->80%)
+     * */
+    private double calculateCompatibility(UserPreferences a, UserPreferences b) {
         int total=0,max=0;
         total+=preferenceMatchScore(a.getSleepSchedule(),b.getSleepSchedule(),a.getSleepScheduleImportance());
         max+=importanceWeight(a.getSleepScheduleImportance());
@@ -110,11 +130,17 @@ public class MatchingService {
      * cauz they aren't a match (-99)
      * else it ll give 0 a simple mismatch
      * */
-    private int preferenceMatchScore(Enum<?>a, Enum<?>b, ImportanceLevel level){
+    private int preferenceMatchScore(Enum<?> a, Enum<?> b, ImportanceLevel level) {
+        if (level == null) {
+            level = ImportanceLevel.NEUTRAL; // Default to NEUTRAL if null
+        }
         if(a==b)return importanceWeight(level);
         return (level == ImportanceLevel.MUST_HAVE)?-999:0;
     }
-    private int booleanMatchScore(boolean a,boolean b,ImportanceLevel level){
+    private int booleanMatchScore(boolean a, boolean b, ImportanceLevel level) {
+        if (level == null) {
+            level = ImportanceLevel.NEUTRAL; // Default to NEUTRAL if null
+        }
         if(a==b)return importanceWeight(level);
         return (level==ImportanceLevel.MUST_HAVE)?-999:0;
     }
@@ -123,7 +149,10 @@ public class MatchingService {
      * Returns the preference_weight
      * each one on its own.
      * */
-    private int importanceWeight(ImportanceLevel level){
+    private int importanceWeight(ImportanceLevel level) {
+        if (level == null) {
+            level = ImportanceLevel.NEUTRAL; // Default to NEUTRAL if null
+        }
         return switch(level){
             case MUST_HAVE -> 20;
             case PREFERRED -> 10;
@@ -138,13 +167,13 @@ public class MatchingService {
         return matchSuggestionRepository.findByUserOrderByScoreDesc(user)
                 .stream()
                 .map(s -> new MatchCandidate(
+                        s.getId(),
                         s.getSuggestedUser().getId(),
                         s.getSuggestedUser().getFirstName(),
                         s.getScore()
                 ))
                 .toList();
     }
-
 
 
 }

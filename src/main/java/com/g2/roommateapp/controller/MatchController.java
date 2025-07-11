@@ -6,11 +6,13 @@ import com.g2.roommateapp.dto.RoomDTO;
 import com.g2.roommateapp.entity.MatchSuggestion;
 import com.g2.roommateapp.entity.Room;
 import com.g2.roommateapp.entity.User;
+import com.g2.roommateapp.enums.NotificationType;
 import com.g2.roommateapp.repository.MatchSuggestionRepository;
 import com.g2.roommateapp.repository.RoomRepository;
 import com.g2.roommateapp.repository.UserRepository;
 import com.g2.roommateapp.service.JwtService;
 import com.g2.roommateapp.service.MatchingService;
+import com.g2.roommateapp.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -35,7 +37,9 @@ public class MatchController {
     @Autowired
     private final MatchSuggestionRepository matchSuggestionRepository;
     @Autowired
-    private RoomRepository roomRepository;
+    private final RoomRepository roomRepository;
+    @Autowired
+    private final NotificationService notificationService;
 
 
     @GetMapping("/top")
@@ -83,31 +87,88 @@ public class MatchController {
 
         Optional<MatchSuggestion> matchOpt = matchSuggestionRepository.findById(request.getMatchId());
         if (matchOpt.isEmpty()) {
+            System.out.println("[ACCEPT] Match not found for id: " + request.getMatchId());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Match not found");
         }
 
         MatchSuggestion match = matchOpt.get();
+        System.out.println("[ACCEPT] Found match: " + match.getId() + " - User: " + match.getUser().getEmail() + " -> Suggested: " + match.getSuggestedUser().getEmail());
 
-        
-        if (match.getUser().equals(currentUser)) {
+        // Determine if current user is the suggester or the suggested
+        boolean isUser = match.getUser().getId().equals(currentUser.getId());
+        boolean isSuggested = match.getSuggestedUser().getId().equals(currentUser.getId());
+
+        if (!isUser && !isSuggested) {
+            System.out.println("[ACCEPT] Current user is not part of this match suggestion.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized for this match");
+        }
+
+        // Update the correct flag based on which user is accepting
+        if (isUser) {
             match.setAcceptedByUser(true);
-        } else if (match.getSuggestedUser().equals(currentUser)) {
+            System.out.println("[ACCEPT] User " + currentUser.getEmail() + " accepted as the suggester");
+        } else if (isSuggested) {
             match.setAcceptedBySuggested(true);
-        } else {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to accept this match");
+            System.out.println("[ACCEPT] User " + currentUser.getEmail() + " accepted as the suggested user");
         }
-
+        
         matchSuggestionRepository.save(match);
+        System.out.println("[ACCEPT] Saved match with acceptedByUser=" + match.isAcceptedByUser() + ", acceptedBySuggested=" + match.isAcceptedBySuggested());
 
-        // Check if both users have accepted to create a room
+        // Now check for mutual acceptance
+        // We need to check if both users have accepted each other
+        boolean mutualAcceptance = false;
+        
+        // Check if both flags are true in this row (both users accepted in this direction)
         if (match.isAcceptedByUser() && match.isAcceptedBySuggested()) {
-            Room room = new Room();
-            room.setUser1(match.getUser());
-            room.setUser2(match.getSuggestedUser());
-            roomRepository.save(room);
+            mutualAcceptance = true;
+            System.out.println("[ACCEPT] Both users accepted in this direction");
+        } else {
+            // Check the reverse direction
+            Optional<MatchSuggestion> reverseOpt = matchSuggestionRepository
+                    .findByUserIdAndSuggestedUserId(match.getSuggestedUser().getId(), match.getUser().getId());
+
+            if (reverseOpt.isPresent()) {
+                MatchSuggestion reverse = reverseOpt.get();
+                System.out.println("[ACCEPT] Found reverse match: " + reverse.getId() + " - acceptedByUser=" + reverse.isAcceptedByUser() + ", acceptedBySuggested=" + reverse.isAcceptedBySuggested());
+                
+                // For mutual acceptance, we need:
+                // 1. Current user has accepted (either as suggester or suggested)
+                // 2. Other user has accepted (either as suggester or suggested)
+                boolean currentUserAccepted = match.isAcceptedByUser() || match.isAcceptedBySuggested();
+                boolean otherUserAccepted = reverse.isAcceptedByUser() || reverse.isAcceptedBySuggested();
+                
+                if (currentUserAccepted && otherUserAccepted) {
+                    mutualAcceptance = true;
+                    System.out.println("[ACCEPT] Both users have accepted each other");
+                }
+            } else {
+                System.out.println("[ACCEPT] No reverse match found");
+            }
         }
 
-        return ResponseEntity.ok("Match accepted successfully");
+        // Create room if mutual acceptance is achieved
+        if (mutualAcceptance) {
+            // Check if room already exists
+            boolean roomExists = roomRepository.existsByUser1AndUser2(match.getUser(), match.getSuggestedUser())
+                    || roomRepository.existsByUser2AndUser1(match.getUser(), match.getSuggestedUser());
+            
+            if (!roomExists) {
+                Room room = new Room();
+                room.setUser1(match.getUser());
+                room.setUser2(match.getSuggestedUser());
+                roomRepository.save(room);
+                System.out.println("[ACCEPT] ✅ Room created for users: " + match.getUser().getEmail() + " and " + match.getSuggestedUser().getEmail());
+                return ResponseEntity.ok("Match accepted");
+            } else {
+                System.out.println("[ACCEPT] Room already exists for users: " + match.getUser().getEmail() + " and " + match.getSuggestedUser().getEmail());
+                return ResponseEntity.ok("You're already matched with this user");
+            }
+        } else {
+            System.out.println("[ACCEPT] ❌ Both users have not accepted yet. No room created.");
+        }
+
+        return ResponseEntity.ok("Match accepted");
     }
     /**
      * Fetch for the rooms nothing special
@@ -126,6 +187,21 @@ public class MatchController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(roomDTOs);
+    }
+
+
+    // When a user sends a match request
+    @PostMapping("/matches/request/{targetUserId}")
+    public void sendMatchRequest(
+            @PathVariable Long targetUserId,
+            @AuthenticationPrincipal User currentUser) {
+
+        notificationService.sendNotification(
+                targetUserId.toString(),
+                currentUser.getId().toString(),
+                "New match request from " + currentUser.getFirstName(),
+                NotificationType.MATCH_REQUEST
+        );
     }
 }
 
