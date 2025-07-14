@@ -23,43 +23,103 @@ public class UserPreferences {
     @JoinColumn(name="id")
     private User user;
 
+    // Basic Lifestyle Preferences
     @Enumerated(EnumType.STRING)
     private Cleanliness cleanliness;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel cleanlinessImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel cleanlinessImportance;
 
     @Enumerated(EnumType.STRING)
     private SleepSchedule sleepSchedule;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel sleepScheduleImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel sleepScheduleImportance;
 
     @Enumerated(EnumType.STRING)
     private NoiseTolerance noiseTolerance;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel noiseToleranceImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel noiseToleranceImportance;
 
     @Enumerated(EnumType.STRING)
     private StudyPreference studyPreference;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel studyPreferenceImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel studyPreferenceImportance;
 
     @Enumerated(EnumType.STRING)
     private VisitorPolicy visitorPolicy;
 
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel visitorPolicyImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel visitorPolicyImportance;
 
-    private boolean hasPets = false;
+    // Pet Preferences
+    private Boolean hasPets;
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel hasPetsImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel hasPetsImportance;
 
-    private boolean acceptsPets = false;
+    private Boolean acceptsPets;
     @Enumerated(EnumType.STRING)
-    private ImportanceLevel acceptsPetsImportance = ImportanceLevel.NEUTRAL;
+    private ImportanceLevel acceptsPetsImportance;
+
+    // Smoking Preferences
+    private Boolean isSmoker;
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel smokingImportance;
+
+    private Boolean acceptsSmokers;
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel acceptsSmokersImportance;
+
+    // Social Preferences
+    @Enumerated(EnumType.STRING)
+    private SocialPreference socialPreference;
+
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel socialPreferenceImportance;
+
+    // Work/Study Schedule
+    @Enumerated(EnumType.STRING)
+    private WorkSchedule workSchedule;
+
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel workScheduleImportance;
+
+    // Budget Preferences
+    private String minBudget;
+    private String maxBudget;
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel budgetImportance;
+
+    // Location Preferences
+    private String preferredNeighborhoods;
+    private String preferredTransportation;
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel locationImportance;
+
+    // Roommate Preferences
+    @Enumerated(EnumType.STRING)
+    private GenderPreference genderPreference;
+
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel genderPreferenceImportance;
+
+    @Enumerated(EnumType.STRING)
+    private AgePreference agePreference;
+
+    @Enumerated(EnumType.STRING)
+    private ImportanceLevel agePreferenceImportance;
+
+    // Additional Preferences
+    private Boolean prefersQuietEnvironment;
+    private Boolean prefersActiveLifestyle;
+    private Boolean prefersCooking;
+    private Boolean prefersEatingOut;
+    private Boolean prefersGym;
+    private Boolean prefersParties;
+    private Boolean prefersEarlyRiser;
+    private Boolean prefersNightOwl;
 
     @Override
     public boolean equals(Object o) {

@@ -2,6 +2,7 @@ package com.g2.roommateapp.service;
 
 import com.g2.roommateapp.dto.LoginRequest;
 import com.g2.roommateapp.dto.RegisterRequest;
+import com.g2.roommateapp.dto.ProfileUpdateRequest;
 import com.g2.roommateapp.entity.User;
 import com.g2.roommateapp.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +82,19 @@ public class UserService {
             user.setLastName(updatedUser.getLastName());
             if (updatedUser.getPassword() != null) {
                 user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+            }
+            return userRepository.save(user);
+        });
+    }
+
+    public Optional<User> updateUserProfile(Long id, ProfileUpdateRequest request) {
+        return userRepository.findById(id).map(user -> {
+            user.setEmail(request.getEmail());
+            user.setFirstName(request.getFirstName());
+            user.setLastName(request.getLastName());
+            // Only update password if provided
+            if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+                user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
             return userRepository.save(user);
         });

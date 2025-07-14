@@ -5,6 +5,7 @@ import com.g2.roommateapp.dto.PreferencesResponse;
 import com.g2.roommateapp.service.JwtService;
 import com.g2.roommateapp.service.UserPreferencesService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,17 +17,27 @@ public class UserPreferencesController {
     private final JwtService jwtService;
 
     @GetMapping
-    public PreferencesResponse get(@RequestHeader("Authorization") String token) {
-        Long userId = jwtService.extractId(token);
-        return preferencesService.getPreferences(userId);
+    public ResponseEntity<?> get(@RequestHeader("Authorization") String token) {
+        try {
+            Long userId = jwtService.extractId(token);
+            PreferencesResponse response = preferencesService.getPreferences(userId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(403).body("Failed to get preferences: " + e.getMessage());
+        }
     }
 
     @PutMapping
-    public PreferencesResponse update(@RequestHeader("Authorization") String token,
+    public ResponseEntity<?> update(@RequestHeader("Authorization") String token,
                        @RequestBody PreferencesRequest request) {
-        Long userId = jwtService.extractId(token);
-        preferencesService.updatePreferences(userId, request);
-        return preferencesService.getPreferences(userId);
+        try {
+            Long userId = jwtService.extractId(token);
+            preferencesService.updatePreferences(userId, request);
+            PreferencesResponse response = preferencesService.getPreferences(userId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(403).body("Failed to update preferences: " + e.getMessage());
+        }
     }
 }
 

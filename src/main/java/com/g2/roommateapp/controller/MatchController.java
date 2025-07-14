@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@RequestMapping("/users/match")
+@RequestMapping("/api/matches")
 @RestController
 @RequiredArgsConstructor
 public class MatchController {
@@ -115,32 +115,43 @@ public class MatchController {
         matchSuggestionRepository.save(match);
         System.out.println("[ACCEPT] Saved match with acceptedByUser=" + match.isAcceptedByUser() + ", acceptedBySuggested=" + match.isAcceptedBySuggested());
 
-        // Now check for mutual acceptance
-        // We need to check if both users have accepted each other
+        // Also update the reverse match if it exists
+        Optional<MatchSuggestion> reverseOpt = matchSuggestionRepository
+                .findByUserIdAndSuggestedUserId(match.getSuggestedUser().getId(), match.getUser().getId());
+        
+        if (reverseOpt.isPresent()) {
+            MatchSuggestion reverse = reverseOpt.get();
+            if (isUser) {
+                // Current user is the suggester, so update the reverse match's accepted_by_suggested
+                reverse.setAcceptedBySuggested(true);
+                System.out.println("[ACCEPT] Updated reverse match acceptedBySuggested to true");
+            } else if (isSuggested) {
+                // Current user is the suggested, so update the reverse match's acceptedByUser
+                reverse.setAcceptedByUser(true);
+                System.out.println("[ACCEPT] Updated reverse match acceptedByUser to true");
+            }
+            matchSuggestionRepository.save(reverse);
+        }
+
+        // Check for mutual acceptance - simplified logic
         boolean mutualAcceptance = false;
         
-        // Check if both flags are true in this row (both users accepted in this direction)
+        // Check if both users have accepted in this direction
         if (match.isAcceptedByUser() && match.isAcceptedBySuggested()) {
             mutualAcceptance = true;
             System.out.println("[ACCEPT] Both users accepted in this direction");
         } else {
             // Check the reverse direction
-            Optional<MatchSuggestion> reverseOpt = matchSuggestionRepository
-                    .findByUserIdAndSuggestedUserId(match.getSuggestedUser().getId(), match.getUser().getId());
-
             if (reverseOpt.isPresent()) {
                 MatchSuggestion reverse = reverseOpt.get();
                 System.out.println("[ACCEPT] Found reverse match: " + reverse.getId() + " - acceptedByUser=" + reverse.isAcceptedByUser() + ", acceptedBySuggested=" + reverse.isAcceptedBySuggested());
                 
                 // For mutual acceptance, we need:
-                // 1. Current user has accepted (either as suggester or suggested)
-                // 2. Other user has accepted (either as suggester or suggested)
-                boolean currentUserAccepted = match.isAcceptedByUser() || match.isAcceptedBySuggested();
-                boolean otherUserAccepted = reverse.isAcceptedByUser() || reverse.isAcceptedBySuggested();
-                
-                if (currentUserAccepted && otherUserAccepted) {
+                // User A has accepted User B's suggestion (match.acceptedByUser = true)
+                // User B has accepted User A's suggestion (reverse.acceptedByUser = true)
+                if (match.isAcceptedByUser() && reverse.isAcceptedByUser()) {
                     mutualAcceptance = true;
-                    System.out.println("[ACCEPT] Both users have accepted each other");
+                    System.out.println("[ACCEPT] Both users have accepted each other's suggestions");
                 }
             } else {
                 System.out.println("[ACCEPT] No reverse match found");
@@ -159,7 +170,7 @@ public class MatchController {
                 room.setUser2(match.getSuggestedUser());
                 roomRepository.save(room);
                 System.out.println("[ACCEPT] ✅ Room created for users: " + match.getUser().getEmail() + " and " + match.getSuggestedUser().getEmail());
-                return ResponseEntity.ok("Match accepted");
+                return ResponseEntity.ok("Match accepted and room created!");
             } else {
                 System.out.println("[ACCEPT] Room already exists for users: " + match.getUser().getEmail() + " and " + match.getSuggestedUser().getEmail());
                 return ResponseEntity.ok("You're already matched with this user");

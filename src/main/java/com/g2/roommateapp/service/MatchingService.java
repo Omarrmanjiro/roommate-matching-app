@@ -47,27 +47,42 @@ public class MatchingService {
  *
  */
     public List<MatchCandidate> getTopMatches(User currentUser, int topN){
+        // Check if current user has preferences
+        if (currentUser.getPreferences() == null) {
+            return new ArrayList<>(); // Return empty list if no preferences
+        }
+        
         List<User> allUser=userRepository.findAllExcept(currentUser.getId());
         List<MatchCandidate> candidates=new ArrayList<>();
 
         for(User other:allUser){
+            // Skip users with no preferences
             if(other.getPreferences()==null)continue;
-            double score =calculateCompatibility(currentUser.getPreferences(),other.getPreferences());
-
+            
+            // Check if other user has basic preferences filled
+            UserPreferences otherPrefs = other.getPreferences();
+            boolean hasBasicPreferences = otherPrefs.getCleanliness() != null || 
+                                        otherPrefs.getSleepSchedule() != null || 
+                                        otherPrefs.getNoiseTolerance() != null || 
+                                        otherPrefs.getSocialPreference() != null;
+            
+            if (!hasBasicPreferences) continue; // Skip users with incomplete preferences
+            
+            double score = calculateCompatibility(currentUser.getPreferences(),other.getPreferences());
 
             if (score > 0) {
                 matchSuggestionRepository.findByUserAndSuggestedUser(currentUser, other)
                         .ifPresentOrElse(existing -> {
                             existing.setScore(score);
                             matchSuggestionRepository.save(existing);
-                            candidates.add(new MatchCandidate(existing.getId(), other.getId(), other.getFirstName(), score));
+                            candidates.add(new MatchCandidate(existing.getId(), other.getId(), other.getFirstName(), score, existing.isAcceptedByUser(), existing.isAcceptedBySuggested()));
                         }, () -> {
                             MatchSuggestion suggestion = new MatchSuggestion();
                             suggestion.setUser(currentUser);
                             suggestion.setSuggestedUser(other);
                             suggestion.setScore(score);
                             MatchSuggestion savedSuggestion = matchSuggestionRepository.save(suggestion);
-                            candidates.add(new MatchCandidate(savedSuggestion.getId(), other.getId(), other.getFirstName(), score));
+                            candidates.add(new MatchCandidate(savedSuggestion.getId(), other.getId(), other.getFirstName(), score, savedSuggestion.isAcceptedByUser(), savedSuggestion.isAcceptedBySuggested()));
 
                             // Add notification for new match here
                             notificationService.sendRealTimeNotification(
@@ -110,10 +125,10 @@ public class MatchingService {
         total+=preferenceMatchScore(a.getVisitorPolicy(),b.getVisitorPolicy(),a.getVisitorPolicyImportance());
         max+=importanceWeight(a.getVisitorPolicyImportance());
 
-        total+=booleanMatchScore(a.isHasPets(),b.isHasPets(),a.getHasPetsImportance());
+        total+=booleanMatchScore(a.getHasPets(),b.getHasPets(),a.getHasPetsImportance());
         max+=importanceWeight(a.getHasPetsImportance());
 
-        total+=booleanMatchScore(a.isAcceptsPets(),b.isAcceptsPets(),a.getAcceptsPetsImportance());
+        total+=booleanMatchScore(a.getAcceptsPets(),b.getAcceptsPets(),a.getAcceptsPetsImportance());
         max+=importanceWeight(a.getAcceptsPetsImportance());
 
         if(max==0)return 0;
@@ -170,7 +185,9 @@ public class MatchingService {
                         s.getId(),
                         s.getSuggestedUser().getId(),
                         s.getSuggestedUser().getFirstName(),
-                        s.getScore()
+                        s.getScore(),
+                        s.isAcceptedByUser(),
+                        s.isAcceptedBySuggested()
                 ))
                 .toList();
     }

@@ -1,8 +1,10 @@
 package com.g2.roommateapp.controller;
 
 import com.g2.roommateapp.dto.UserDTO;
+import com.g2.roommateapp.dto.ProfileUpdateRequest;
 import com.g2.roommateapp.entity.User;
 import com.g2.roommateapp.service.UserService;
+import com.g2.roommateapp.service.JwtService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,12 +15,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/Auth")
 @RequiredArgsConstructor
 public class UserController {
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private JwtService jwtService;
 
     //creating user
     @PostMapping
@@ -38,6 +43,45 @@ public class UserController {
                 .map(UserDTO::new)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+    
+    //Get current user profile
+    @GetMapping("/profile")
+    public ResponseEntity<UserDTO> getCurrentUserProfile(@RequestHeader("Authorization") String token) {
+        try {
+            Long userId = jwtService.extractId(token);
+            return userService.getUserById(userId)
+                    .map(UserDTO::new)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(403).build();
+        }
+    }
+    
+    //Update current user profile
+    @PutMapping("/profile")
+    public ResponseEntity<String> updateCurrentUserProfile(@RequestHeader("Authorization") String token, 
+                                                          @Valid @RequestBody ProfileUpdateRequest request) {
+        try {
+            Long userId = jwtService.extractId(token);
+            return userService.updateUserProfile(userId, request)
+                    .map(user -> ResponseEntity.ok("Profile updated successfully"))
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(403).build();
+        }
+    }
+    
+    //Test authentication endpoint
+    @GetMapping("/test")
+    public ResponseEntity<String> testAuth(@RequestHeader("Authorization") String token) {
+        try {
+            Long userId = jwtService.extractId(token);
+            return ResponseEntity.ok("Authentication successful! User ID: " + userId);
+        } catch (Exception e) {
+            return ResponseEntity.status(403).body("Authentication failed: " + e.getMessage());
+        }
     }
 
     //List of all users

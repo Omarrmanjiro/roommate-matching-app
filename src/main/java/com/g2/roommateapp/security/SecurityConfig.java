@@ -27,20 +27,6 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
     }
-//    @Bean
-//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//        return http
-//                .csrf(AbstractHttpConfigurer::disable)
-//                .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers("/", "/Auth/**", "/users/**").permitAll() // This allows all auth and users endpoints
-//                        .anyRequest().authenticated()
-//                )
-//                .sessionManagement(sess -> sess
-//                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//                )
-//                .build();
-//    }
-//
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -50,7 +36,10 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/Auth/login", "/Auth/register").permitAll()
-                .requestMatchers("/", "/Auth/**", "/users/**", "/ws/**", "/topic/**", "/app/**", "/user/**", "/static/**").permitAll()
+                .requestMatchers("/", "/ws/**", "/topic/**", "/app/**", "/user/**", "/static/**").permitAll()
+                .requestMatchers("/Auth/profile", "/users/preferences").authenticated()
+                .requestMatchers("/Auth/**").permitAll()
+                .requestMatchers("/users/**").authenticated()
                 .anyRequest().authenticated()
             );
         http
