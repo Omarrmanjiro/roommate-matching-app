@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roommate Chat Test Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            max-width: 1100px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 320px;
+            background: #f6f8fc;
+            padding: 32px 24px;
+            border-right: 1px solid #e0e0e0;
+        }
+        .sidebar h2 {
+            margin-bottom: 16px;
+            font-size: 1.4em;
+            color: #333;
+        }
+        .sidebar label {
+            font-weight: 500;
+            margin-top: 12px;
+            display: block;
+        }
+        .sidebar input[type="email"], .sidebar input[type="password"] {
+            width: 100%;
+            padding: 8px 10px;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            border: 1px solid #bdbdbd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        .sidebar button {
+            width: 100%;
+            padding: 10px 0;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #4f8cff;
+            color: #fff;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .sidebar button:hover {
+            background: #2563eb;
+        }
+        .sidebar .status {
+            margin: 10px 0 0 0;
+            font-size: 1em;
+        }
+        .sidebar .status.connected {
+            color: #43a047;
+        }
+        .sidebar .status.disconnected {
+            color: #e53935;
+        }
+        .sidebar .user-info {
+            margin-top: 24px;
+            padding: 16px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+        .chat-header {
+            padding: 24px 32px 16px 32px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f6f8fc;
+        }
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #333;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            background: #f9fbfd;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            max-width: 60%;
+            margin-bottom: 18px;
+            padding: 12px 18px;
+            border-radius: 16px;
+            font-size: 1.1em;
+            line-height: 1.5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .message.me {
+            align-self: flex-end;
+            background: linear-gradient(90deg, #4f8cff 0%, #00eaff 100%);
+            color: #fff;
+        }
+        .message.other {
+            align-self: flex-start;
+            background: #fff;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+        .message .meta {
+            display: block;
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 6px;
+        }
+        .chat-input {
+            display: flex;
+            padding: 24px 32px;
+            border-top: 1px solid #e0e0e0;
+            background: #f6f8fc;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #bdbdbd;
+            border-radius: 8px;
+            font-size: 1.1em;
+            margin-right: 16px;
+        }
+        .chat-input button {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 8px;
+            background: #4f8cff;
+            color: #fff;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .chat-input button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <!-- Notification Bar -->
+    <div id="notification-bar" style="display:none; position:fixed; top:0; left:0; width:100%; background:#ffe082; color:#333; padding:10px 0; text-align:center; font-weight:600; font-size:1.1em; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+        <span id="notification-message"></span>
+        <span id="notification-badge" style="background:#ff5252; color:#fff; border-radius:12px; padding:2px 10px; margin-left:10px; font-size:0.95em; display:none;"></span>
+    </div>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Roommate Chat</h2>
+            <div id="login-form">
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+                <button onclick="onLogin()">Login</button>
+                <button onclick="onRegister()">Register</button>
+                <div id="login-status" class="status"></div>
+            </div>
+            <div id="user-info" style="display:none;">
+                <div class="user-info">
+                    <b>Email:</b> <span id="user-email"></span><br>
+                    <b>Room:</b> <span id="user-room"></span><br>
+                    <b>Status:</b> <span id="user-status" class="status disconnected">Disconnected</span>
+                </div>
+                <button onclick="onLogout()" style="background:#e53935;">Logout</button>
+            </div>
+        </div>
+        <div class="main">
+            <div class="chat-header">
+                <h1>Room Chat</h1>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div id="chat-placeholder" style="color:#888; text-align:center; margin-top:40px;">Connect to start chatting...</div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="chat-input" placeholder="Type your message..." disabled>
+                <button onclick="sendMessage()" id="send-btn" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+        let currentToken = null;
+        let currentUser = null;
+        let currentRoom = 1;
+
+        const API_BASE = "http://localhost:8080";
+
+        // --- Session Persistence ---
+        function saveSession() {
+            localStorage.setItem('chat_token', currentToken);
+            localStorage.setItem('chat_user', currentUser);
+            localStorage.setItem('chat_room', currentRoom);
+        }
+        function loadSession() {
+            currentToken = localStorage.getItem('chat_token');
+            currentUser = localStorage.getItem('chat_user');
+            currentRoom = localStorage.getItem('chat_room') || 1;
+        }
+        function clearSession() {
+            localStorage.removeItem('chat_token');
+            localStorage.removeItem('chat_user');
+            localStorage.removeItem('chat_room');
+        }
+
+        // --- UI/Status ---
+        function setStatus(connected) {
+            const status = document.getElementById('user-status');
+            if (connected) {
+                status.textContent = 'Connected';
+                status.classList.remove('disconnected');
+                status.classList.add('connected');
+            } else {
+                status.textContent = 'Disconnected';
+                status.classList.remove('connected');
+                status.classList.add('disconnected');
+            }
+        }
+
+        function showUserInfo(email) {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('user-info').style.display = '';
+            document.getElementById('user-email').textContent = email;
+            document.getElementById('user-room').textContent = currentRoom;
+        }
+
+        function showLoginForm() {
+            document.getElementById('login-form').style.display = '';
+            document.getElementById('user-info').style.display = 'none';
+            setStatus(false);
+        }
+
+        function addMessage(msg, meta, isMe) {
+            const chat = document.getElementById('chat-messages');
+            document.getElementById('chat-placeholder').style.display = 'none';
+            const div = document.createElement('div');
+            div.className = 'message ' + (isMe ? 'me' : 'other');
+            div.innerHTML = msg + '<span class="meta">' + meta + '</span>';
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function clearMessages() {
+            const chat = document.getElementById('chat-messages');
+            chat.innerHTML = '<div id="chat-placeholder" style="color:#888; text-align:center; margin-top:40px;">Connect to start chatting...</div>';
+        }
+
+        async function onLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            document.getElementById('login-status').textContent = '';
+            try {
+                const response = await fetch(`${API_BASE}/Auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentToken = data.token;
+                    currentUser = email;
+                    saveSession();
+                    showUserInfo(email);
+                    setStatus(false);
+                    connectWebSocket();
+                    document.getElementById('chat-input').disabled = false;
+                    document.getElementById('send-btn').disabled = false;
+                    clearMessages();
+                } else {
+                    document.getElementById('login-status').textContent = '✗ Login error';
+                }
+            } catch (e) {
+                document.getElementById('login-status').textContent = '✗ Login error';
+            }
+        }
+
+        async function onRegister() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            document.getElementById('login-status').textContent = '';
+            try {
+                const response = await fetch(`${API_BASE}/Auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                if (response.ok) {
+                    document.getElementById('login-status').textContent = '✓ Registration successful, please login';
+                } else {
+                    document.getElementById('login-status').textContent = '✗ Registration error';
+                }
+            } catch (e) {
+                document.getElementById('login-status').textContent = '✗ Registration error';
+            }
+        }
+
+        function onLogout() {
+            currentToken = null;
+            currentUser = null;
+            clearSession();
+            showLoginForm();
+            // clearMessages(); // Chat will remain visible after logout
+            document.getElementById('chat-input').disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            if (stompClient) stompClient.disconnect();
+        }
+
+        function connectWebSocket() {
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({ 'Authorization': 'Bearer ' + currentToken }, function(frame) {
+                setStatus(true);
+                console.log('WebSocket connected:', frame);
+                stompClient.subscribe('/topic/chat/' + currentRoom, function(message) {
+                    console.log('Received message:', message.body);
+                    try {
+                        const msg = JSON.parse(message.body);
+                        console.log('Parsed message object:', msg);
+                        const isMe = msg.senderEmail === currentUser;
+                        const label = isMe ? 'You: ' : (msg.senderEmail ? msg.senderEmail + ': ' : '');
+                        addMessage(label + msg.content, new Date(msg.timestamp).toLocaleTimeString(), isMe);
+                        // Show notification if message is from another user
+                        if (!isMe) showNotification('New message from ' + (msg.senderEmail || 'someone'));
+                    } catch (e) {
+                        console.log('Non-JSON message:', message.body);
+                    }
+                });
+            }, function(error) {
+                setStatus(false);
+                console.log('WebSocket error:', error);
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg || !stompClient || !currentToken) return;
+            console.log('Sending message:', msg);
+            stompClient.send('/app/chat', { 'Authorization': 'Bearer ' + currentToken }, JSON.stringify({ content: msg, roomId: String(currentRoom) }));
+            input.value = '';
+        }
+
+        // --- Load chat history ---
+        async function loadChatHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/chat/${currentRoom}/history`, {
+                    headers: { 'Authorization': 'Bearer ' + currentToken }
+                });
+                if (response.ok) {
+                    const history = await response.json();
+                    clearMessages();
+                    history.forEach(msg => {
+                        const isMe = msg.senderEmail === currentUser;
+                        const label = isMe ? 'You: ' : (msg.senderEmail ? msg.senderEmail + ': ' : '');
+                        addMessage(label + msg.content, new Date(msg.timestamp).toLocaleTimeString(), isMe);
+                    });
+                }
+            } catch (e) {
+                console.log('Failed to load chat history:', e);
+            }
+        }
+
+        // --- Auto-login on page load ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSession();
+            if (currentToken && currentUser) {
+                showUserInfo(currentUser);
+                setStatus(false);
+                connectWebSocket();
+                document.getElementById('chat-input').disabled = false;
+                document.getElementById('send-btn').disabled = false;
+                loadChatHistory();
+            } else {
+                showLoginForm();
+                clearMessages();
+            }
+        });
+
+        // --- Notification Bar Logic ---
+        let notificationCount = 0;
+        function showNotification(message) {
+            notificationCount++;
+            const bar = document.getElementById('notification-bar');
+            const msg = document.getElementById('notification-message');
+            const badge = document.getElementById('notification-badge');
+            msg.textContent = message;
+            badge.textContent = notificationCount;
+            badge.style.display = notificationCount > 0 ? '' : 'none';
+            bar.style.display = '';
+            // Auto-hide after 5 seconds
+            setTimeout(hideNotification, 5000);
+        }
+        function hideNotification() {
+            notificationCount = 0;
+            document.getElementById('notification-bar').style.display = 'none';
+        }
+    </script>
+</body>
+</html> 
